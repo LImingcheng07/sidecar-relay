@@ -52,6 +52,21 @@
 - 客户侧入口经反代：`200`，43s，presigned URL 下载 1.7MB JPEG
 - 熔断器 `open=false`，`window_ct0_hits=0`
 
+## 后续坑：408 修好之后会撞 429
+
+```
+x-access-error: rate_limited
+x-access-user-context: gc_cons_status="slowdown_daily_limits_exhausted",
+                       gc_credit_type="firefly_limited_taste"
+```
+
+- 与票无关：新采账号、新铸造环境、新出口，全都会 429
+- 特征：所有请求的 `retry-after` 是同一个时间戳（≈ 当前 +60s），说明是环境级窗口，不是账号级
+- 实测单一铸造环境 ≈ 1 请求/分钟；4 个请求在 24s 内连发 → 429/429/200/429
+
+**结论**：账号池大 ≠ 吞吐大。并发上限由「铸造环境数量」决定。多开 sidecar（不同 fingerprint 种子）
+才能线性提升；网关侧必须按 `retry-after` 退避，用「换设备立刻重试」只会把窗口一直踩住。
+
 ## 反模式清单
 
 - ❌ 看到 408 就换代理 / 换 IP 段 —— 5 个不同住宅段全 408，说明与出口无关
@@ -59,3 +74,6 @@
 - ❌ 复用采号票 —— 采号链是纯协议/无头，天然在「不可信」档
 - ❌ 把 sidecar 改成 headless 省内存 —— 立刻回到全量 408
 - ❌ 手工重启 sidecar 后忘了检查 `/health` 里的 `headless` 字段
+- ❌ 把 429 当 408 处理（换账号/换票重试）—— 429 是窗口问题，重试只会延长封锁
+- ❌ `docker run` 不加 `--shm-size=1g` —— 默认 64MB，chrome 崩溃后会连带 Xvfb 一起死，
+  而 `/health` 仍然报 `ok:true`，只有真铸一次票才暴露

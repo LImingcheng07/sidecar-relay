@@ -101,12 +101,33 @@ def ticket_for(device_id):
 | `MINT_HEADLESS` | sidecar | **必须 `0`**；`1` 会立刻回到全量 408 |
 | `FF_ARP_TTL` | 网关 | 票缓存秒数，建议 600（票本身约 1800s 有效） |
 
+## 429 与 408 是两件事
+
+修好 408 之后还会撞上 `429 rate_limited`，两者判据完全不同：
+
+```
+x-access-error: rate_limited
+x-access-user-context: gc_cons_status="slowdown_daily_limits_exhausted",
+                       gc_credit_type="firefly_limited_taste"
+retry-after: <60s 内的时间戳>
+```
+
+- **408** = 票不被信任（环境判定）→ 换 headful 票
+- **429** = 票没问题，是额度/速率窗口打满了 → 等 `retry-after`，**不要**换账号重试
+
+实测：单一铸造环境下约 1 请求/分钟，突发并发会连续 429。也就是说
+**并发能力取决于铸造环境数量，不取决于账号池大小**。想提吞吐就多开 sidecar（不同 `--fingerprint` 种子
+= 不同环境），而不是加账号。网关侧务必按 `retry-after` 退避，别用「换设备立刻重试」的做法，
+那会把窗口一直踩住，表现为「看起来全挂」。
+
 ## 排障顺序（照这个顺序查，别乱换代理）
 
 1. `curl 127.0.0.1:8778/health` → `ok:true` 且 `upstream.headless:false`
-2. `POST /mint` 看 `fields` 是否 `[sid, ftr, ark, bfp]` 齐全、`ark_region` 是否合理
-3. 用这张票手工打一次上游提交接口 → 看 `200` 还是 `408`
-4. 只有前三步都正常，才去怀疑账号 / 出口 / 请求体
+2. `GET /mint?fresh=1` 看 token 长度是否正常（约 700+）与 `status:ok`
+3. 用这张票手工打一次上游提交接口 → `200` / `408` / `429` 分别对应三种原因
+4. `408` 查票的铸造方式；`429` 查 `retry-after` 与额度；两者都正常才去怀疑账号 / 出口 / 请求体
+
+> `/mint` 是 **GET**，用 POST 会 404。
 
 ## 免责声明
 
