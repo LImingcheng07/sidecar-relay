@@ -1,0 +1,10 @@
+[Unit]
+Description=Run sidecar-relay self-heal every 3min
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=3min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+services:
+  sidecar:
+    build: ./sidecar
+    image: sidecar-relay:local
+    container_name: mint-sidecar
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SIDECAR_PORT:-8777}:8777"
+    environment:
+      # 必须是 0（有头）。改成 1 会立刻回到全量 408。
+      MINT_HEADLESS: "${MINT_HEADLESS:-0}"
+    shm_size: "1gb"

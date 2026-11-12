@@ -1,0 +1,10 @@
+.env
+*.log
+*.jsonl
+*.db
+data/
+images/
+cache/
+__pycache__/
+*.pyc
+node_modules/

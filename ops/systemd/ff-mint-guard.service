@@ -1,0 +1,7 @@
+[Unit]
+Description=sidecar-relay self-heal
+After=docker.service ff-mint-bridge.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/mint_guard.sh

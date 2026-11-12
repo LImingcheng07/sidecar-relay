@@ -1,0 +1,14 @@
+sidecar-relay
+Copyright (c) 2026 LImingcheng07
+
+本仓库包含第三方 MIT 代码：
+
+  sidecar/mint-service.mjs
+  sidecar/Dockerfile
+  sidecar/entrypoint.sh
+  sidecar/package.json
+  sidecar/package-lock.json
+
+  改编自 songsongQAQ/adobe2api-plus (https://github.com/songsongQAQ/adobe2api-plus)
+  原项目亦以 MIT 许可发布，版权归其原作者所有。
+  本仓库仅做目录整理与配置默认值调整，未改动铸票逻辑。
