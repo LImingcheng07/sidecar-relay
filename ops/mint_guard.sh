@@ -41,9 +41,15 @@ recreate() {
   local c="$1" why="$2"
   log "$c: $why -> recreate container"
   docker rm -f "$c" >/dev/null 2>&1
+  local mount=()
+  # 加固版源码在宿主上时挂进去，重建后仍是加固版（否则回落镜像内旧代码）
+  if [ -f "${MINT_SRC:-/opt/adobe-mint/mint-service.mjs}" ]; then
+    mount=(-v "${MINT_SRC:-/opt/adobe-mint/mint-service.mjs}:/mint/mint-service.mjs:ro")
+  fi
   # shellcheck disable=SC2086
   docker run -d --restart unless-stopped --shm-size=1g \
     -p "127.0.0.1:${MINT_HOST_PORT:-8777}:8777" \
+    "${mount[@]}" \
     -e MINT_HEADLESS=0 \
     -e "MINT_MAX_CONC=${MINT_MAX_CONC:-3}" \
     -e "MINT_PROXY_TPL=${MINT_PROXY_TPL:-}" \
