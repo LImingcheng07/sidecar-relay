@@ -5,7 +5,11 @@ Requires=docker.service
 
 [Service]
 Type=simple
+# 单容器部署：两个通道都指 8777。
+# 双通道部署（docker compose --profile dual）：前台 8776、预热 8777。
 Environment=MINT_UPSTREAM=http://127.0.0.1:8777
+Environment=MINT_WARM_UPSTREAM=http://127.0.0.1:8777
+Environment=MINT_OD_TIMEOUT=75
 Environment=MINT_BRIDGE_KEY=change-me-please
 Environment=MINT_BRIDGE_PORT=8778
 ExecStart=/usr/bin/python3 /opt/sidecar-relay/bridge/mint_bridge.py

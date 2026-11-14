@@ -1,4 +1,5 @@
 services:
+  # 主通道（默认）：单容器部署就够用，前台请求 + 后台预热共用
   sidecar:
     build: ./sidecar
     image: sidecar-relay:local
@@ -9,4 +10,38 @@ services:
     environment:
       # 必须是 0（有头）。改成 1 会立刻回到全量 408。
       MINT_HEADLESS: "${MINT_HEADLESS:-0}"
+      MINT_PORT: "8777"
+      MINT_MAX_CONC: "${MINT_MAX_CONC:-3}"
+      # 住宅代理模板，必须含 {sess} 占位符 —— 票与铸造时的出口 IP 绑定，
+      # 空值/写错 = 用机房 IP 铸票 = 提交恒 408（服务会拒绝启动并打印原因）。
+      # 注意占位符是单花括号 {sess}，不要写成 ${sess}：docker compose 会把它当变量
+      # 插值吃掉，chrome 拿到畸形 --proxy-server 后静默直连，/health 却仍报 ok。
+      MINT_PROXY_TPL: "${MINT_PROXY_TPL:-}"
+      MINT_EGRESS_CHECK: "${MINT_EGRESS_CHECK:-1}"
+    shm_size: "1gb"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8777/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # 可选双通道：高流量时把前台（on-demand，短超时）与预热（低并发）拆开，
+  # 避免预热抢走前台请求的 chrome 池（冷铸 20~50s，抢池会把前台拖到 2 分钟）。
+  # 启用：docker compose --profile dual up -d
+  # 同时给 bridge 设 MINT_UPSTREAM=http://127.0.0.1:8776、MINT_WARM_UPSTREAM=http://127.0.0.1:8777
+  sidecar-od:
+    profiles: ["dual"]
+    build: ./sidecar
+    image: sidecar-relay:local
+    container_name: mint-sidecar-od
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SIDECAR_OD_PORT:-8776}:8777"
+    environment:
+      MINT_HEADLESS: "${MINT_HEADLESS:-0}"
+      MINT_PORT: "8777"
+      MINT_MAX_CONC: "${MINT_OD_MAX_CONC:-4}"
+      MINT_PROXY_TPL: "${MINT_PROXY_TPL:-}"
+      MINT_EGRESS_CHECK: "${MINT_EGRESS_CHECK:-1}"
     shm_size: "1gb"
