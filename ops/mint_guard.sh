@@ -24,9 +24,9 @@ try:
     d = json.loads(raw)
 except Exception:
     print("0 unknown unknown unknown unknown"); raise SystemExit
-u = d.get("upstream") or {}
-# 双通道时 upstream 是 {ondemand:{...}, warm:{...}}，取 ondemand 优先
-if "ondemand" in u or "warm" in u:
+u = d.get("upstream") or d
+# 桥返回 {ok, ondemand:{...}, warm:{...}}（或包一层 upstream）；优先取前台通道
+if isinstance(u, dict) and ("ondemand" in u or "warm" in u):
     u = u.get("ondemand") or u.get("warm") or {}
 ok = int(bool(d.get("ok") and u.get("ok")))
 print(ok,
@@ -83,7 +83,7 @@ if [ "${HEADLESS:-unknown}" = "true" ]; then
   read -r OK HEADLESS PROXY_OK MISMATCH EGRESS <<<"$(parse_health "$OUT")"
 fi
 
-if [ "${MISMATCH:-0}" != "0" ] && [ "${MISMATCH:-0}" != "unknown" ]; then
+if [[ "${MISMATCH:-0}" =~ ^[0-9]+$ ]] && [ "$MISMATCH" != "0" ]; then
   log "WARN egress_mismatch=$MISMATCH（最近出口 ${EGRESS} 与宿主相同）：代理链路失效，票会被判 408"
 fi
 
